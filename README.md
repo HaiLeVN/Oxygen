@@ -163,57 +163,6 @@ storage:
     table-prefix: oxygen_
 ```
 
-## 🔄 API Usage
-
-### For Developers
-
-```java
-// Get plugin instance
-Oxygen oxygenPlugin = (Oxygen) Bukkit.getPluginManager().getPlugin("Oxygen");
-
-// Get player's oxygen level
-int oxygen = oxygenPlugin.getOxygenManager().getOxygen(player);
-
-// Set player's oxygen
-oxygenPlugin.getOxygenManager().setOxygen(player, 50);
-
-// Check if player is in spaceship region
-boolean inSpaceship = oxygenPlugin.getRegionChecker().isInSpaceshipRegion(player);
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Plugin not working after reload:**
-- Use `/oxygen reload` instead of server reload
-- Check console for configuration errors
-
-**Sounds not playing:**
-- Verify sound names in configuration
-- For custom sounds, ensure resource pack is properly loaded
-- Check client-side resource pack installation
-
-**Boss bar not showing:**
-- Confirm player is in allowed world and game mode
-- Check if player has unlimited permission
-- Verify boss bar configuration syntax
-
-### Debug Information
-
-Enable debug logging by setting your server's debug level:
-```yaml
-# In server.properties or bukkit.yml
-debug: true
-```
-
-## 📊 Performance
-
-- **Async data saving** for minimal lag
-- **Efficient region checking** with caching
-- **Optimized boss bar updates** (only when needed)
-- **Memory-efficient player data management**
-
 ## 🤝 Contributing
 
 1. **Fork** the repository
@@ -235,15 +184,14 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🙏 Credits
 
-- **Developer**: [haile](https://github.com/yourusername)
+- **Developer**: [haile](https://github.com/HaiLeVN)
 - **Inspired by**: Space exploration and survival gameplay
 - **Special Thanks**: WorldGuard team for region API
 
 ## 📞 Support
 
-- **Issues**: [GitHub Issues](../../issues)
-- **Discord**: [Your Discord Server](https://discord.gg/yourserver)
-- **Wiki**: [Plugin Wiki](../../wiki)
+- **Issues**: [GitHub Issues](https://github.com/HaiLeVN/Oxygen/issues)
+- **Wiki**: NOT YET
 
 ---
 
