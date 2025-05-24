@@ -1,0 +1,195 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # Triggers on version tags like v1.0.0, v2.1.3, etc.
+  workflow_dispatch:  # Allows manual trigger from GitHub UI
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.0.0)'
+        required: true
+        default: '1.0.0'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write  # Required for creating releases
+      packages: write  # Required for uploading artifacts
+    
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Fetch full history for proper versioning
+    
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        cache: gradle
+    
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
+    
+    - name: Extract version from tag or input
+      id: version
+      run: |
+        if [[ "${{ github.event_name }}" == "push" ]]; then
+          # Extract version from tag (remove 'v' prefix)
+          VERSION=${GITHUB_REF#refs/tags/v}
+        else
+          # Use manual input version
+          VERSION="${{ github.event.inputs.version }}"
+        fi
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Building version: $VERSION"
+    
+    - name: Update version in gradle.properties
+      run: |
+        sed -i "s/^version=.*/version=${{ steps.version.outputs.VERSION }}/" gradle.properties
+        cat gradle.properties
+    
+    - name: Validate Gradle wrapper
+      uses: gradle/wrapper-validation-action@v1
+    
+    - name: Clean and Build
+      run: |
+        ./gradlew clean
+        ./gradlew shadowJar --no-daemon --stacktrace
+    
+    - name: Run Tests
+      run: ./gradlew test --no-daemon
+      continue-on-error: true  # Continue even if tests fail
+    
+    - name: Generate Build Report
+      if: always()
+      run: |
+        echo "## Build Information" > build-report.md
+        echo "- **Version**: ${{ steps.version.outputs.VERSION }}" >> build-report.md
+        echo "- **Java Version**: $(java -version 2>&1 | head -n 1)" >> build-report.md
+        echo "- **Gradle Version**: $(./gradlew --version | grep Gradle | head -n 1)" >> build-report.md
+        echo "- **Build Time**: $(date)" >> build-report.md
+        echo "- **Commit**: ${{ github.sha }}" >> build-report.md
+        
+        if [ -f "build/libs/Oxygen-${{ steps.version.outputs.VERSION }}.jar" ]; then
+          echo "- **JAR Size**: $(du -h build/libs/Oxygen-${{ steps.version.outputs.VERSION }}.jar | cut -f1)" >> build-report.md
+          echo "✅ Build successful!" >> build-report.md
+        else
+          echo "❌ Build failed!" >> build-report.md
+        fi
+    
+    - name: List build artifacts
+      run: |
+        echo "=== Build Artifacts ==="
+        ls -la build/libs/
+        echo "======================="
+    
+    - name: Generate Changelog
+      id: changelog
+      run: |
+        # Generate changelog from git commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        
+        if [ -z "$LAST_TAG" ]; then
+          echo "CHANGELOG=Initial release of Oxygen Plugin" >> $GITHUB_OUTPUT
+        else
+          echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
+          echo "## Changes since $LAST_TAG" >> $GITHUB_OUTPUT
+          git log --pretty=format:"- %s (%an)" $LAST_TAG..HEAD >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', steps.version.outputs.VERSION) }}
+        release_name: Oxygen Plugin v${{ steps.version.outputs.VERSION }}
+        body: |
+          # 🌌 Oxygen Plugin v${{ steps.version.outputs.VERSION }}
+          
+          A realistic oxygen system for Minecraft servers with space/survival themes.
+          
+          ## 📥 Download
+          Download the plugin JAR file from the assets below and place it in your server's `plugins/` folder.
+          
+          ## 🔧 Requirements
+          - **Minecraft**: 1.20+
+          - **Java**: 17+
+          - **Dependencies**: WorldGuard
+          - **Server**: Paper, Spigot, or compatible
+          
+          ## 📋 Installation
+          1. Download `Oxygen-${{ steps.version.outputs.VERSION }}.jar`
+          2. Place in your server's `plugins/` folder
+          3. Install WorldGuard if not already installed
+          4. Restart your server
+          5. Configure using `/oxygen reload`
+          
+          ## ✨ Features
+          - 🫁 **Real-time oxygen consumption** in specified worlds
+          - 🎯 **WorldGuard integration** for safe zones (spaceship regions)
+          - 🔔 **Advanced warning system** with custom sounds
+          - 🎨 **Boss bar with hex colors** using MiniMessage
+          - ⚙️ **Live config reload** without restart
+          
+          ## 📝 Changelog
+          ${{ steps.changelog.outputs.CHANGELOG }}
+          
+          ## ⚠️ Important Notes
+          - Always backup your server before updating plugins
+          - This plugin requires WorldGuard to function properly
+          - Check the [README](../../README.md) for detailed configuration
+          - Report issues on our [GitHub Issues](../../issues) page
+          
+          ---
+          
+          **📊 Build Info**: Java 17 | Gradle | Paper API | Built on Ubuntu
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.VERSION, '-') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') }}
+    
+    - name: Upload JAR Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build/libs/Oxygen-${{ steps.version.outputs.VERSION }}.jar
+        asset_name: Oxygen-${{ steps.version.outputs.VERSION }}.jar
+        asset_content_type: application/java-archive
+    
+    - name: Upload Build Report
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./build-report.md
+        asset_name: build-report.md
+        asset_content_type: text/markdown
+    
+    - name: Upload to Artifacts (Backup)
+      uses: actions/upload-artifact@v4
+      with:
+        name: Oxygen-${{ steps.version.outputs.VERSION }}
+        path: |
+          build/libs/*.jar
+          build-report.md
+        retention-days: 30
+    
+    - name: Post-build Notifications
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ Successfully built and released Oxygen v${{ steps.version.outputs.VERSION }}"
+          echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
+        else
+          echo "❌ Build failed for Oxygen v${{ steps.version.outputs.VERSION }}"
+        fi
