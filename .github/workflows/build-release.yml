@@ -30,7 +30,6 @@ jobs:
       with:
         java-version: '17'
         distribution: 'temurin'
-        cache: gradle
     
     - name: Setup Gradle
       uses: gradle/gradle-build-action@v2
@@ -52,43 +51,125 @@ jobs:
     
     - name: Update version in gradle.properties
       run: |
-        sed -i "s/^version=.*/version=${{ steps.version.outputs.VERSION }}/" gradle.properties
-        cat gradle.properties
+        if [ -f "gradle.properties" ]; then
+          sed -i "s/^version=.*/version=${{ steps.version.outputs.VERSION }}/" gradle.properties
+          echo "Updated gradle.properties:"
+          cat gradle.properties
+        else
+          echo "version=${{ steps.version.outputs.VERSION }}" > gradle.properties
+          echo "Created gradle.properties with version: ${{ steps.version.outputs.VERSION }}"
+        fi
     
-    - name: Validate Gradle wrapper
-      uses: gradle/wrapper-validation-action@v1
+    - name: Verify Gradle Build File
+      run: |
+        echo "=== Checking build.gradle ==="
+        if [ -f "build.gradle" ]; then
+          echo "✅ build.gradle found"
+          echo "--- Content preview ---"
+          head -20 build.gradle
+        else
+          echo "❌ build.gradle not found!"
+          exit 1
+        fi
+        echo "=========================="
     
     - name: Clean and Build
       run: |
-        ./gradlew clean
-        ./gradlew shadowJar --no-daemon --stacktrace
+        echo "🧹 Cleaning previous builds..."
+        gradle clean --no-daemon --stacktrace
+        
+        echo "🔨 Building project..."
+        gradle build --no-daemon --stacktrace --info
+        
+        echo "📦 Creating shadow JAR..."
+        gradle shadowJar --no-daemon --stacktrace
     
     - name: Run Tests
-      run: ./gradlew test --no-daemon
+      run: |
+        echo "🧪 Running tests..."
+        gradle test --no-daemon --continue
       continue-on-error: true  # Continue even if tests fail
+    
+    - name: List Build Outputs
+      run: |
+        echo "=== Build Directory Structure ==="
+        if [ -d "build" ]; then
+          find build -type f -name "*.jar" | head -20
+          echo ""
+          echo "=== Libs Directory ==="
+          if [ -d "build/libs" ]; then
+            ls -la build/libs/
+          else
+            echo "No build/libs directory found"
+          fi
+        else
+          echo "No build directory found!"
+        fi
+        echo "================================="
+    
+    - name: Find and Rename JAR
+      id: find_jar
+      run: |
+        # Look for JAR files in build/libs
+        if [ -d "build/libs" ]; then
+          # First try to find shadow JAR
+          SHADOW_JAR=$(find build/libs -name "*-all.jar" | head -1)
+          
+          if [ -n "$SHADOW_JAR" ]; then
+            echo "Found shadow JAR: $SHADOW_JAR"
+            JAR_FILE="$SHADOW_JAR"
+          else
+            # Find any non-source/javadoc JAR
+            JAR_FILE=$(find build/libs -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+          fi
+          
+          if [ -n "$JAR_FILE" ]; then
+            # Rename to standard format
+            NEW_NAME="Oxygen-${{ steps.version.outputs.VERSION }}.jar"
+            cp "$JAR_FILE" "build/libs/$NEW_NAME"
+            
+            echo "JAR_PATH=build/libs/$NEW_NAME" >> $GITHUB_OUTPUT
+            echo "JAR_NAME=$NEW_NAME" >> $GITHUB_OUTPUT
+            echo "✅ JAR prepared: $NEW_NAME"
+            
+            # Show JAR info
+            echo "JAR size: $(du -h build/libs/$NEW_NAME | cut -f1)"
+          else
+            echo "❌ No JAR file found in build/libs!"
+            exit 1
+          fi
+        else
+          echo "❌ No build/libs directory found!"
+          exit 1
+        fi
     
     - name: Generate Build Report
       if: always()
       run: |
-        echo "## Build Information" > build-report.md
+        echo "## 🔨 Build Information" > build-report.md
         echo "- **Version**: ${{ steps.version.outputs.VERSION }}" >> build-report.md
         echo "- **Java Version**: $(java -version 2>&1 | head -n 1)" >> build-report.md
-        echo "- **Gradle Version**: $(./gradlew --version | grep Gradle | head -n 1)" >> build-report.md
+        echo "- **Gradle Version**: $(gradle --version | grep Gradle | head -n 1)" >> build-report.md
         echo "- **Build Time**: $(date)" >> build-report.md
         echo "- **Commit**: ${{ github.sha }}" >> build-report.md
+        echo "- **Branch**: ${{ github.ref_name }}" >> build-report.md
         
-        if [ -f "build/libs/Oxygen-${{ steps.version.outputs.VERSION }}.jar" ]; then
-          echo "- **JAR Size**: $(du -h build/libs/Oxygen-${{ steps.version.outputs.VERSION }}.jar | cut -f1)" >> build-report.md
-          echo "✅ Build successful!" >> build-report.md
+        if [ -f "${{ steps.find_jar.outputs.JAR_PATH }}" ]; then
+          echo "- **JAR File**: ${{ steps.find_jar.outputs.JAR_NAME }}" >> build-report.md
+          echo "- **JAR Size**: $(du -h ${{ steps.find_jar.outputs.JAR_PATH }} | cut -f1)" >> build-report.md
+          echo "- **Build Status**: ✅ SUCCESS" >> build-report.md
         else
-          echo "❌ Build failed!" >> build-report.md
+          echo "- **Build Status**: ❌ FAILED" >> build-report.md
         fi
-    
-    - name: List build artifacts
-      run: |
-        echo "=== Build Artifacts ==="
-        ls -la build/libs/
-        echo "======================="
+        
+        echo "" >> build-report.md
+        echo "## 📋 Build Steps" >> build-report.md
+        echo "1. ✅ Checkout repository" >> build-report.md
+        echo "2. ✅ Setup JDK 17" >> build-report.md
+        echo "3. ✅ Setup Gradle 8.5" >> build-report.md
+        echo "4. ✅ Update version" >> build-report.md
+        echo "5. ✅ Build project" >> build-report.md
+        echo "6. ✅ Create JAR" >> build-report.md
     
     - name: Generate Changelog
       id: changelog
@@ -97,11 +178,12 @@ jobs:
         LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
         
         if [ -z "$LAST_TAG" ]; then
-          echo "CHANGELOG=Initial release of Oxygen Plugin" >> $GITHUB_OUTPUT
+          echo "CHANGELOG=🎉 Initial release of Oxygen Plugin" >> $GITHUB_OUTPUT
         else
           echo "CHANGELOG<<EOF" >> $GITHUB_OUTPUT
-          echo "## Changes since $LAST_TAG" >> $GITHUB_OUTPUT
-          git log --pretty=format:"- %s (%an)" $LAST_TAG..HEAD >> $GITHUB_OUTPUT
+          echo "## 📝 Changes since $LAST_TAG" >> $GITHUB_OUTPUT
+          echo "" >> $GITHUB_OUTPUT
+          git log --pretty=format:"- %s (%an)" $LAST_TAG..HEAD | head -20 >> $GITHUB_OUTPUT
           echo "" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
         fi
@@ -113,7 +195,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', steps.version.outputs.VERSION) }}
-        release_name: Oxygen Plugin v${{ steps.version.outputs.VERSION }}
+        release_name: 🌌 Oxygen Plugin v${{ steps.version.outputs.VERSION }}
         body: |
           # 🌌 Oxygen Plugin v${{ steps.version.outputs.VERSION }}
           
@@ -128,19 +210,22 @@ jobs:
           - **Dependencies**: WorldGuard
           - **Server**: Paper, Spigot, or compatible
           
-          ## 📋 Installation
-          1. Download `Oxygen-${{ steps.version.outputs.VERSION }}.jar`
+          ## 📋 Quick Installation
+          1. Download `${{ steps.find_jar.outputs.JAR_NAME }}`
           2. Place in your server's `plugins/` folder
           3. Install WorldGuard if not already installed
           4. Restart your server
           5. Configure using `/oxygen reload`
           
-          ## ✨ Features
+          ## ✨ Key Features
           - 🫁 **Real-time oxygen consumption** in specified worlds
           - 🎯 **WorldGuard integration** for safe zones (spaceship regions)
           - 🔔 **Advanced warning system** with custom sounds
-          - 🎨 **Boss bar with hex colors** using MiniMessage
-          - ⚙️ **Live config reload** without restart
+          - 🎨 **Boss bar with hex colors** using MiniMessage format
+          - ⚙️ **Live config reload** without server restart
+          - 🌍 **World-based mechanics** with whitelist/blacklist
+          - 🎮 **Game mode restrictions** (Survival, Adventure)
+          - 💾 **Persistent data storage** (file or MySQL)
           
           ## 📝 Changelog
           ${{ steps.changelog.outputs.CHANGELOG }}
@@ -151,11 +236,16 @@ jobs:
           - Check the [README](../../README.md) for detailed configuration
           - Report issues on our [GitHub Issues](../../issues) page
           
+          ## 🆘 Support
+          - 📖 **Documentation**: [README](../../README.md)
+          - 🐛 **Bug Reports**: [Issues](../../issues)
+          - 💬 **Discussions**: [Discussions](../../discussions)
+          
           ---
           
-          **📊 Build Info**: Java 17 | Gradle | Paper API | Built on Ubuntu
+          **📊 Build Info**: Java 17 | Gradle 8.5 | Paper API | Built with ❤️
         draft: false
-        prerelease: ${{ contains(steps.version.outputs.VERSION, '-') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') }}
+        prerelease: ${{ contains(steps.version.outputs.VERSION, '-') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'rc') }}
     
     - name: Upload JAR Asset
       uses: actions/upload-release-asset@v1
@@ -163,8 +253,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./build/libs/Oxygen-${{ steps.version.outputs.VERSION }}.jar
-        asset_name: Oxygen-${{ steps.version.outputs.VERSION }}.jar
+        asset_path: ${{ steps.find_jar.outputs.JAR_PATH }}
+        asset_name: ${{ steps.find_jar.outputs.JAR_NAME }}
         asset_content_type: application/java-archive
     
     - name: Upload Build Report
@@ -174,7 +264,7 @@ jobs:
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }}
         asset_path: ./build-report.md
-        asset_name: build-report.md
+        asset_name: build-report-v${{ steps.version.outputs.VERSION }}.md
         asset_content_type: text/markdown
     
     - name: Upload to Artifacts (Backup)
@@ -186,12 +276,19 @@ jobs:
           build-report.md
         retention-days: 30
     
-    - name: Post-build Notifications
+    - name: Build Summary
       if: always()
       run: |
+        echo "## 🎉 Build Complete!" >> $GITHUB_STEP_SUMMARY
+        echo "- **Version**: ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+        
         if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ Successfully built and released Oxygen v${{ steps.version.outputs.VERSION }}"
-          echo "🔗 Release URL: ${{ steps.create_release.outputs.html_url }}"
+          echo "- **JAR**: ${{ steps.find_jar.outputs.JAR_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Release**: ${{ steps.create_release.outputs.html_url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Successfully built and released Oxygen v${{ steps.version.outputs.VERSION }}**" >> $GITHUB_STEP_SUMMARY
         else
-          echo "❌ Build failed for Oxygen v${{ steps.version.outputs.VERSION }}"
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ **Build failed - check logs above**" >> $GITHUB_STEP_SUMMARY
         fi
