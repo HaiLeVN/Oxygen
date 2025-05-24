@@ -7,7 +7,7 @@ plugins {
 // Load version from gradle.properties or system property
 version = project.hasProperty('version') ? project.version : '1.0-SNAPSHOT'
 group = 'org.haile'
-archivesBaseName = 'Oxygen'
+base.archivesName = 'Oxygen'  // Modern way instead of archivesBaseName
 
 def targetJavaVersion = 17
 java {
@@ -69,7 +69,7 @@ jar {
 
 shadowJar {
     archiveClassifier.set('')
-    archiveFileName.set("${archivesBaseName}-${version}.jar")
+    archiveFileName.set("${base.archivesName.get()}-${version}.jar")
 
     // Relocate dependencies to prevent conflicts
     relocate 'net.kyori.adventure', 'org.haile.oxygen.libs.adventure'
@@ -92,7 +92,6 @@ shadowJar {
     // Set manifest attributes
     manifest {
         attributes(
-                'Main-Class': 'org.haile.oxygen.Oxygen',
                 'Implementation-Title': 'Oxygen',
                 'Implementation-Version': version,
                 'Implementation-Vendor': 'haile',
@@ -102,6 +101,31 @@ shadowJar {
                 'Source-Compatibility': sourceCompatibility,
                 'Target-Compatibility': targetCompatibility
         )
+    }
+
+    // Modern way to add build info
+    doLast {
+        def jarFile = archiveFile.get().asFile
+        if (jarFile.exists()) {
+            logger.lifecycle("")
+            logger.lifecycle("✅ Created JAR: ${jarFile.name}")
+            logger.lifecycle("📦 Size: ${(jarFile.length() / 1024).round(2)} KB")
+            logger.lifecycle("📍 Location: ${jarFile.path}")
+        }
+    }
+}
+
+// Ensure shadowJar runs with build
+build {
+    dependsOn shadowJar
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+    options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked'])
+
+    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
+        options.release.set(targetJavaVersion)
     }
 }
 
@@ -129,20 +153,28 @@ test {
     systemProperty 'user.timezone', 'UTC'
 }
 
+// Run Paper configuration
+tasks {
+    runServer {
+        minecraftVersion("1.20.4")
+    }
+}
+
 // Custom task for development build
-task devBuild {
+tasks.register('devBuild') {
     group = 'build'
     description = 'Build plugin for development (with SNAPSHOT version)'
 
     doFirst {
-        version = version.endsWith('-SNAPSHOT') ? version : version + '-SNAPSHOT'
+        project.version = project.version.toString().endsWith('-SNAPSHOT') ?
+                project.version : project.version + '-SNAPSHOT'
     }
 
     dependsOn shadowJar
 }
 
 // Custom task to prepare for release
-task prepareRelease {
+tasks.register('prepareRelease') {
     group = 'build'
     description = 'Prepare plugin for release (remove SNAPSHOT from version)'
 
@@ -152,68 +184,55 @@ task prepareRelease {
             def props = new Properties()
             propsFile.withInputStream { props.load(it) }
 
-            def currentVersion = props.getProperty('version', '1.0.0-SNAPSHOT')
+            def currentVersion = props.getProperty('version', '1.0-SNAPSHOT')
             def releaseVersion = currentVersion.replace('-SNAPSHOT', '')
 
             props.setProperty('version', releaseVersion)
             propsFile.withOutputStream { props.store(it, 'Updated by prepareRelease task') }
 
-            println "Updated version from ${currentVersion} to ${releaseVersion}"
+            logger.lifecycle("Updated version from ${currentVersion} to ${releaseVersion}")
         }
     }
 }
 
+// Build summary task
+tasks.register('buildSummary') {
+    group = 'build'
+    description = 'Display build summary'
+
+    doLast {
+        logger.lifecycle("")
+        logger.lifecycle("==========================================")
+        logger.lifecycle("🎉 BUILD SUMMARY")
+        logger.lifecycle("==========================================")
+        logger.lifecycle("Plugin: ${base.archivesName.get()}")
+        logger.lifecycle("Version: ${version}")
+        logger.lifecycle("Java: ${System.getProperty('java.version')}")
+        logger.lifecycle("Gradle: ${gradle.gradleVersion}")
+
+        def jarFile = file("build/libs/${base.archivesName.get()}-${version}.jar")
+        if (jarFile.exists()) {
+            logger.lifecycle("JAR: ${jarFile.name} (${(jarFile.length() / 1024).round(2)} KB)")
+            logger.lifecycle("Path: ${jarFile.absolutePath}")
+        } else {
+            logger.lifecycle("JAR: Not found")
+        }
+
+        logger.lifecycle("==========================================")
+    }
+}
+
+// Auto-run build summary after shadowJar
+shadowJar.finalizedBy buildSummary
+
 // Set default task
 defaultTasks 'clean', 'shadowJar'
 
-// Build configuration
-build {
-    dependsOn shadowJar
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-    options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked'])
-
-    if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
-        options.release.set(targetJavaVersion)
-    }
-}
-
-// Configure Javadoc
-javadoc {
-    options.encoding = 'UTF-8'
-    options.charSet = 'UTF-8'
-    if (JavaVersion.current().isJava9Compatible()) {
-        options.addBooleanOption('html5', true)
-    }
-}
-
-// Run Paper configuration
-tasks {
-    runServer {
-        minecraftVersion("1.20.4")
-    }
-}
-
-// Print build information
-gradle.buildFinished { buildResult ->
-    if (buildResult.failure == null) {
-        println ""
-        println "=========================================="
-        println "✅ BUILD SUCCESSFUL"
-        println "=========================================="
-        println "Plugin: ${archivesBaseName}"
-        println "Version: ${version}"
-        println "Output: build/libs/${archivesBaseName}-${version}.jar"
-        println "Size: ${(file("build/libs/${archivesBaseName}-${version}.jar").length() / 1024).round(2)} KB"
-        println "=========================================="
-    } else {
-        println ""
-        println "=========================================="
-        println "❌ BUILD FAILED"
-        println "=========================================="
-        println "Error: ${buildResult.failure.message}"
-        println "=========================================="
+// Modern error handling
+tasks.configureEach {
+    doFirst {
+        if (it.name == 'shadowJar') {
+            logger.lifecycle("🔨 Building ${base.archivesName.get()} v${version}...")
+        }
     }
 }
