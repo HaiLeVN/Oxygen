@@ -107,35 +107,59 @@ jobs:
         fi
         echo "================================="
     
-    - name: Find and Rename JAR
+    - name: Find and Prepare JAR
       id: find_jar
       run: |
         # Look for JAR files in build/libs
         if [ -d "build/libs" ]; then
-          # First try to find shadow JAR
-          SHADOW_JAR=$(find build/libs -name "*-all.jar" | head -1)
+          echo "=== Available JAR files ==="
+          ls -la build/libs/
+          echo "=========================="
           
-          if [ -n "$SHADOW_JAR" ]; then
-            echo "Found shadow JAR: $SHADOW_JAR"
-            JAR_FILE="$SHADOW_JAR"
+          # Expected JAR name
+          EXPECTED_NAME="Oxygen-${{ steps.version.outputs.VERSION }}.jar"
+          
+          # First check if the expected JAR already exists
+          if [ -f "build/libs/$EXPECTED_NAME" ]; then
+            echo "✅ Found expected JAR: $EXPECTED_NAME"
+            JAR_FILE="build/libs/$EXPECTED_NAME"
           else
-            # Find any non-source/javadoc JAR
-            JAR_FILE=$(find build/libs -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+            # Look for shadow JAR
+            SHADOW_JAR=$(find build/libs -name "*-all.jar" | head -1)
+            
+            if [ -n "$SHADOW_JAR" ]; then
+              echo "Found shadow JAR: $SHADOW_JAR"
+              JAR_FILE="$SHADOW_JAR"
+            else
+              # Find any non-source/javadoc JAR
+              JAR_FILE=$(find build/libs -name "*.jar" -not -name "*-sources.jar" -not -name "*-javadoc.jar" | head -1)
+            fi
+            
+            if [ -n "$JAR_FILE" ]; then
+              # Only rename if it's not already the expected name
+              CURRENT_NAME=$(basename "$JAR_FILE")
+              if [ "$CURRENT_NAME" != "$EXPECTED_NAME" ]; then
+                echo "Renaming $CURRENT_NAME to $EXPECTED_NAME"
+                mv "$JAR_FILE" "build/libs/$EXPECTED_NAME"
+                JAR_FILE="build/libs/$EXPECTED_NAME"
+              fi
+            else
+              echo "❌ No JAR file found in build/libs!"
+              exit 1
+            fi
           fi
           
-          if [ -n "$JAR_FILE" ]; then
-            # Rename to standard format
-            NEW_NAME="Oxygen-${{ steps.version.outputs.VERSION }}.jar"
-            cp "$JAR_FILE" "build/libs/$NEW_NAME"
+          if [ -f "$JAR_FILE" ]; then
+            echo "JAR_PATH=$JAR_FILE" >> $GITHUB_OUTPUT
+            echo "JAR_NAME=$EXPECTED_NAME" >> $GITHUB_OUTPUT
+            echo "✅ JAR prepared: $EXPECTED_NAME"
+            echo "📦 JAR size: $(du -h $JAR_FILE | cut -f1)"
             
-            echo "JAR_PATH=build/libs/$NEW_NAME" >> $GITHUB_OUTPUT
-            echo "JAR_NAME=$NEW_NAME" >> $GITHUB_OUTPUT
-            echo "✅ JAR prepared: $NEW_NAME"
-            
-            # Show JAR info
-            echo "JAR size: $(du -h build/libs/$NEW_NAME | cut -f1)"
+            # Verify JAR content
+            echo "🔍 JAR verification:"
+            jar tf "$JAR_FILE" | grep -E "(plugin\.yml|Oxygen\.class)" | head -5
           else
-            echo "❌ No JAR file found in build/libs!"
+            echo "❌ JAR file not found after processing!"
             exit 1
           fi
         else
