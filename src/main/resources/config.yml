@@ -1,0 +1,123 @@
+# Configuration file for Oxygen plugin
+
+# Oxygen settings
+oxygen:
+  # Maximum oxygen level
+  max-level: 100
+
+  # Oxygen decrease rate (in ticks)
+  decrease-rate: 20
+
+  # Damage applied when oxygen is depleted
+  damage: 10
+
+  # Only apply oxygen mechanics in these gamemodes
+  # Valid values: SURVIVAL, ADVENTURE
+  gamemodes:
+    - SURVIVAL
+    - ADVENTURE
+
+  # Only apply oxygen mechanics in these worlds
+  # If empty, applies to all worlds
+  worlds:
+    - Space
+
+  # Determines if world list is a whitelist (true) or blacklist (false)
+  worlds-whitelist: true
+
+# Notification settings
+notifications:
+  # Enable or disable warning messages
+  enabled: true
+
+  # Warnings configuration
+  warnings:
+    # Warning when oxygen is below 50%
+    medium:
+      enabled: true
+      oxygen-level: 50
+      subtitle: "<yellow><bold>Oxy còn 50%, hãy tìm nơi an toàn!</bold></yellow>"
+      sound:
+        enabled: true
+        # Built-in Bukkit sound
+        name: ENTITY_PLAYER_LEVELUP
+        volume: 1.0
+        pitch: 1.0
+
+    # Warning when oxygen is below 25%
+    low:
+      enabled: true
+      oxygen-level: 25
+      subtitle: "<red><bold>Oxy còn cực kỳ thấp! Hãy nạp lại ngay!</bold></red>"
+      sound:
+        enabled: true
+        # Custom sound from resource pack
+        name: "oxygen.warning.low"
+        volume: 1.0
+        pitch: 0.8
+
+    # Warning when oxygen is below 10%
+    critical:
+      enabled: true
+      oxygen-level: 10
+      subtitle: "<dark_red><bold>CẨN THẬN - BẠN SẮP HẾT OXY!</bold></dark_red>"
+      sound:
+        enabled: true
+        # Another custom sound example
+        name: "spaceship.oxygen.critical"
+        volume: 1.5
+        pitch: 0.3
+
+    # Example of additional warning level with built-in sound
+    emergency:
+      enabled: false  # Disabled by default
+      oxygen-level: 5
+      subtitle: "<dark_red><bold><obfuscated>EMERGENCY</obfuscated> - OXYGEN DEPLETED!</bold></dark_red>"
+      sound:
+        enabled: true
+        # Built-in sound
+        name: ENTITY_ENDER_DRAGON_GROWL
+        volume: 2.0
+        pitch: 0.1
+
+# Display settings
+display:
+  # BossBar settings
+  bossbar:
+    # Sử dụng màu hex như mong muốn
+    title: "<white><bold>Oxygen: <#3498db>{oxygen}</#3498db></bold></white><white>/<#3498db>{max}</#3498db></white>"
+    # Colors: PINK, BLUE, RED, GREEN, YELLOW, PURPLE, WHITE
+    colors:
+      high: GREEN
+      medium: YELLOW
+      low: RED
+    # Styles: SOLID, SEGMENTED_6, SEGMENTED_10, SEGMENTED_12, SEGMENTED_20
+    style: SEGMENTED_10
+
+    # Color change thresholds
+    thresholds:
+      # When oxygen level goes below this, color changes to medium
+      medium: 60
+      # When oxygen level goes below this, color changes to low
+      low: 30
+
+  # Messages color schemes
+  messages:
+    prefix: "<aqua>[Oxygen]</aqua> "
+    error: "<red>"
+    success: "<green>"
+    info: "<yellow>"
+
+# Storage settings
+storage:
+  # Storage type: file or mysql
+  type: file
+
+  # MySQL settings (only if storage type is mysql)
+  mysql:
+    host: localhost
+    port: 3306
+    database: minecraft
+    username: root
+    password: password
+    table-prefix: oxygen_

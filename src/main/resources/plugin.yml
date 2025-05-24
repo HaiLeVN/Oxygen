@@ -1,0 +1,19 @@
+name: Oxygen
+version: '${version}'
+main: org.haile.oxygen.Oxygen
+api-version: '1.20'
+depend: [WorldGuard]
+authors: [haile]
+description: A plugin that adds oxygen mechanics to your server
+commands:
+    oxygen:
+        description: Main command for the Oxygen plugin
+        usage: /oxygen <get|set|add|reload> [player] [value]
+        permission: oxygen.admin
+permissions:
+    oxygen.admin:
+        description: Allows access to all Oxygen commands
+        default: op
+    oxygen.unlimited:
+        description: Players with this permission will not be limited by oxygen
+        default: op
