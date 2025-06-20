@@ -221,53 +221,23 @@ jobs:
         tag_name: ${{ github.event_name == 'push' && github.ref_name || format('v{0}', steps.version.outputs.VERSION) }}
         release_name: 🌌 Oxygen Plugin v${{ steps.version.outputs.VERSION }}
         body: |
-          # 🌌 Oxygen Plugin v${{ steps.version.outputs.VERSION }}
-          
-          A realistic oxygen system for Minecraft servers with space/survival themes.
-          
-          ## 📥 Download
-          Download the plugin JAR file from the assets below and place it in your server's `plugins/` folder.
-          
-          ## 🔧 Requirements
-          - **Minecraft**: 1.20+
-          - **Java**: 17+
-          - **Dependencies**: WorldGuard
-          - **Server**: Paper, Spigot, or compatible
-          
-          ## 📋 Quick Installation
-          1. Download `${{ steps.find_jar.outputs.JAR_NAME }}`
-          2. Place in your server's `plugins/` folder
-          3. Install WorldGuard if not already installed
-          4. Restart your server
-          5. Configure using `/oxygen reload`
-          
-          ## ✨ Key Features
-          - 🫁 **Real-time oxygen consumption** in specified worlds
-          - 🎯 **WorldGuard integration** for safe zones (spaceship regions)
-          - 🔔 **Advanced warning system** with custom sounds
-          - 🎨 **Boss bar with hex colors** using MiniMessage format
-          - ⚙️ **Live config reload** without server restart
-          - 🌍 **World-based mechanics** with whitelist/blacklist
-          - 🎮 **Game mode restrictions** (Survival, Adventure)
-          - 💾 **Persistent data storage** (file or MySQL)
-          
-          ## 📝 Changelog
-          ${{ steps.changelog.outputs.CHANGELOG }}
-          
-          ## ⚠️ Important Notes
-          - Always backup your server before updating plugins
-          - This plugin requires WorldGuard to function properly
-          - Check the [README](../../README.md) for detailed configuration
-          - Report issues on our [GitHub Issues](../../issues) page
-          
-          ## 🆘 Support
-          - 📖 **Documentation**: [README](../../README.md)
-          - 🐛 **Bug Reports**: [Issues](../../issues)
-          - 💬 **Discussions**: [Discussions](../../discussions)
-          
-          ---
-          
-          **📊 Build Info**: Java 17 | Gradle 8.5 | Paper API | Built with ❤️
+          New update from Oxygen plugin!
+
+          Updated:
+          - Added PlaceholderAPI supports
+              > Available Placeholders:
+
+              * %oxygen_current% or %oxygen_level% - Current oxygen level (number)
+              * %oxygen_max% or %oxygen_maximum% - Maximum oxygen level (considers unlimited permission)
+              * %oxygen_percentage% or %oxygen_percent% - Oxygen as percentage (e.g., "85.5")
+              * %oxygen_bar% or %oxygen_progress% - Visual progress bar (20 characters with colors)
+              * %oxygen_status% - Text status: "Healthy", "Low", "Critical", or "Depleted"
+              * %oxygen_color% - Color code based on oxygen level (&a, &e, &c, &4)
+              * %oxygen_formatted% - Colored display like "&a85&7/100"
+              * %oxygen_remaining_time% - Estimated minutes until oxygen depletes
+
+          - Added Potion Effects WEAKNESS, SLOW, NAUSEA of threshold level below 20
+          - Fixed BossbarManager class exception from line BossBar.showBossbar(player)
         draft: false
         prerelease: ${{ contains(steps.version.outputs.VERSION, '-') || contains(steps.version.outputs.VERSION, 'beta') || contains(steps.version.outputs.VERSION, 'alpha') || contains(steps.version.outputs.VERSION, 'rc') }}
     
