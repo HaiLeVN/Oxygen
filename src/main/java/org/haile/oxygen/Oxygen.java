@@ -1,5 +1,6 @@
 package org.haile.oxygen;
 
+import org.bukkit.Bukkit;
 import org.haile.oxygen.commands.OxygenCommands;
 import org.haile.oxygen.listeners.PlayerOxygenEventListener;
 import org.haile.oxygen.listeners.PluginReloadListener;
@@ -9,6 +10,7 @@ import org.haile.oxygen.managers.OxygenDataManager;
 import org.haile.oxygen.managers.OxygenPlayerManager;
 import org.haile.oxygen.managers.RegionChecker;
 import org.haile.oxygen.models.ConfigSettings;
+import org.haile.oxygen.placeholders.OxygenPlaceholderExpansion;
 import org.haile.oxygen.tasks.OxygenConsumerTasks;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
@@ -56,6 +58,10 @@ public final class Oxygen extends JavaPlugin {
                     new PlayerOxygenEventListener(oxygenManager, bossBarManager), this);
             getServer().getPluginManager().registerEvents(
                     new PluginReloadListener(this), this);
+
+            if (Bukkit.getPluginManager().isPluginEnabled("PlaceholderAPI")) { //
+                new OxygenPlaceholderExpansion(this).register();
+            }
 
             // Start oxygen check task
             startOxygenTask();

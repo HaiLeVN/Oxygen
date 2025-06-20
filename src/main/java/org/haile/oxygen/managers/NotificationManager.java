@@ -141,10 +141,6 @@ public class NotificationManager {
                         warning.getVolume(),
                         warning.getPitch()
                 );
-
-                plugin.getLogger().fine("Played custom sound '" + customSoundName +
-                        "' for player " + player.getName());
-
             } else if (warning.getSound() != null) {
                 // Play built-in Bukkit sound
                 player.playSound(
@@ -153,12 +149,6 @@ public class NotificationManager {
                         warning.getVolume(),
                         warning.getPitch()
                 );
-
-                plugin.getLogger().fine("Played built-in sound '" + warning.getSound().name() +
-                        "' for player " + player.getName());
-            } else {
-                plugin.getLogger().warning("Warning '" + warning.getId() +
-                        "' has sound enabled but no valid sound configured!");
             }
 
         } catch (Exception e) {

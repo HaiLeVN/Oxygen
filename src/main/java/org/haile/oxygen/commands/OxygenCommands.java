@@ -1,5 +1,6 @@
 package org.haile.oxygen.commands;
 
+import org.bukkit.potion.PotionEffectType;
 import org.haile.oxygen.Oxygen;
 import org.haile.oxygen.managers.OxygenPlayerManager;
 import org.bukkit.Bukkit;
@@ -145,9 +146,9 @@ public class OxygenCommands implements CommandExecutor {
 
             // Notify target player
             if (addValue > 0) {
-                target.sendMessage("§a[Oxygen] Bạn đã được thêm " + addValue + " oxygen!");
+                target.sendMessage("§aBạn đã được thêm " + addValue + " oxygen!");
             } else {
-                target.sendMessage("§c[Oxygen] Bạn đã bị trừ " + Math.abs(addValue) + " oxygen!");
+                target.sendMessage("§cBạn đã bị trừ " + Math.abs(addValue) + " oxygen!");
             }
 
             return true;

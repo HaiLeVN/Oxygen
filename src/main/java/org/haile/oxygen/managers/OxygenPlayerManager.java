@@ -1,6 +1,9 @@
 package org.haile.oxygen.managers;
 
 import org.bukkit.entity.Player;
+import org.bukkit.potion.Potion;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.haile.oxygen.models.ConfigSettings;
 import org.haile.oxygen.models.OxygenPlayer;
 
@@ -105,7 +108,14 @@ public class OxygenPlayerManager {
 
         if (oxygenPlayer != null) {
             oxygenPlayer.decreaseOxygen(1);
+
+            // Cho người chơi effects giảm damage và đi chậm
             int newOxygen = oxygenPlayer.getOxygenLevel();
+            if (newOxygen < 20) {
+                player.addPotionEffect(new PotionEffect(PotionEffectType.WEAKNESS, 100, 1, false, false, false));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.SLOW, 100, 1, false, false, false));
+                player.addPotionEffect(new PotionEffect(PotionEffectType.CONFUSION, 100, 3, false, false, false));
+            }
 
             // Update boss bar
             bossBarManager.updateBossBar(player, newOxygen);

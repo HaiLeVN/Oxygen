@@ -1,13 +1,12 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow' version '8.1.1'
-    id("xyz.jpenilla.run-paper") version "2.3.1"
+    id 'xyz.jpenilla.run-paper' version '2.3.1'
 }
 
-// Load version from gradle.properties or system property
 version = project.hasProperty('version') ? project.version : '1.0-SNAPSHOT'
 group = 'org.haile'
-base.archivesName = 'Oxygen'  // Modern way instead of archivesBaseName
+base.archivesName = 'Oxygen'
 
 def targetJavaVersion = 17
 java {
@@ -21,37 +20,26 @@ java {
 
 repositories {
     mavenCentral()
-
-    // Paper
-    maven {
-        name = "papermc-repo"
-        url = "https://repo.papermc.io/repository/maven-public/"
-    }
-
-    // Sonatype
-    maven {
-        name = "sonatype"
-        url = "https://oss.sonatype.org/content/groups/public/"
-    }
-
-    // WorldGuard/WorldEdit
-    maven {
-        name = 'sk89q-repo'
-        url = "https://maven.enginehub.org/repo/"
-    }
+    maven { url = 'https://repo.papermc.io/repository/maven-public/' } // Paper
+    maven { url = 'https://oss.sonatype.org/content/groups/public/' } // Sonatype
+    maven { url = 'https://maven.enginehub.org/repo/' } // WorldGuard/WorldEdit
+    maven { url = 'https://repo.extendedclip.com/releases/' } // PlaceholderAPI
 }
 
 dependencies {
-    // Paper API
-    compileOnly("io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT")
+    // Paper API (provided by server, no need to shade)
+    compileOnly 'io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT'
 
-    // WorldGuard
-    compileOnly("com.sk89q.worldguard:worldguard-bukkit:7.0.9")
+    // WorldGuard (provided, no need to shade)
+    compileOnly 'com.sk89q.worldguard:worldguard-bukkit:7.0.9'
 
-    // Adventure API (using newer versions)
-    implementation("net.kyori:adventure-api:4.21.0")
-    implementation("net.kyori:adventure-text-minimessage:4.21.0")
-    implementation("net.kyori:adventure-platform-bukkit:4.3.2")
+    // Adventure API (provided by Paper, do not shade)
+    compileOnly 'net.kyori:adventure-api:4.15.0' // Match Paper's version
+    compileOnly 'net.kyori:adventure-text-minimessage:4.15.0'
+    compileOnly 'net.kyori:adventure-platform-bukkit:4.3.2'
+
+    // PlaceholderAPI (optional, provided if installed on server)
+    compileOnly 'me.clip:placeholderapi:2.11.6'
 
     // JetBrains Annotations
     compileOnly 'org.jetbrains:annotations:24.1.0'
@@ -59,37 +47,31 @@ dependencies {
     // Testing dependencies
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
     testImplementation 'org.mockito:mockito-core:5.8.0'
-    testImplementation("io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT")
+    testImplementation 'io.papermc.paper:paper-api:1.20.4-R0.1-SNAPSHOT'
 }
 
-// Configure JAR building
 jar {
-    enabled = false // We'll use shadowJar instead
+    enabled = false // Use shadowJar
 }
 
 shadowJar {
     archiveClassifier.set('')
     archiveFileName.set("${base.archivesName.get()}-${version}.jar")
 
-    // Relocate dependencies to prevent conflicts
-    relocate 'net.kyori.adventure', 'org.haile.oxygen.libs.adventure'
-    relocate 'net.kyori.examination', 'org.haile.oxygen.libs.examination'
+    // Remove Adventure relocations to prevent conflicts with Paper's Adventure API
+    // No need to relocate or include Adventure dependencies
+    // dependencies {
+    //     include(dependency('net.kyori:adventure-api'))
+    //     include(dependency('net.kyori:adventure-text-minimessage'))
+    //     include(dependency('net.kyori:adventure-platform-bukkit'))
+    //     include(dependency('net.kyori:adventure-text-serializer-legacy'))
+    //     include(dependency('net.kyori:adventure-key'))
+    //     include(dependency('net.kyori:examination-api'))
+    //     include(dependency('net.kyori:examination-string'))
+    // }
 
-    // Include only necessary dependencies
-    dependencies {
-        include(dependency('net.kyori:adventure-api'))
-        include(dependency('net.kyori:adventure-text-minimessage'))
-        include(dependency('net.kyori:adventure-platform-bukkit'))
-        include(dependency('net.kyori:adventure-text-serializer-legacy'))
-        include(dependency('net.kyori:adventure-key'))
-        include(dependency('net.kyori:examination-api'))
-        include(dependency('net.kyori:examination-string'))
-    }
-
-    // Minimize JAR size
     minimize()
 
-    // Set manifest attributes
     manifest {
         attributes(
                 'Implementation-Title': 'Oxygen',
@@ -103,7 +85,6 @@ shadowJar {
         )
     }
 
-    // Modern way to add build info
     doLast {
         def jarFile = archiveFile.get().asFile
         if (jarFile.exists()) {
@@ -115,7 +96,6 @@ shadowJar {
     }
 }
 
-// Ensure shadowJar runs with build
 build {
     dependsOn shadowJar
 }
@@ -123,7 +103,6 @@ build {
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.compilerArgs.addAll(['-Xlint:deprecation', '-Xlint:unchecked'])
-
     if (targetJavaVersion >= 10 || JavaVersion.current().isJava10Compatible()) {
         options.release.set(targetJavaVersion)
     }
@@ -132,74 +111,58 @@ tasks.withType(JavaCompile).configureEach {
 processResources {
     def props = [version: version]
     inputs.properties props
-
     filteringCharset 'UTF-8'
     filesMatching('plugin.yml') {
         expand props
     }
 }
 
-// Configure test task
 test {
     useJUnitPlatform()
-
     testLogging {
-        events "passed", "skipped", "failed"
-        exceptionFormat "full"
+        events 'passed', 'skipped', 'failed'
+        exceptionFormat 'full'
     }
-
-    // Set system properties for tests
     systemProperty 'file.encoding', 'UTF-8'
     systemProperty 'user.timezone', 'UTC'
 }
 
-// Run Paper configuration
 tasks {
     runServer {
-        minecraftVersion("1.20.4")
+        minecraftVersion('1.20.4')
     }
 }
 
-// Custom task for development build
 tasks.register('devBuild') {
     group = 'build'
     description = 'Build plugin for development (with SNAPSHOT version)'
-
     doFirst {
         project.version = project.version.toString().endsWith('-SNAPSHOT') ?
                 project.version : project.version + '-SNAPSHOT'
     }
-
     dependsOn shadowJar
 }
 
-// Custom task to prepare for release
 tasks.register('prepareRelease') {
     group = 'build'
     description = 'Prepare plugin for release (remove SNAPSHOT from version)'
-
     doLast {
         def propsFile = file('gradle.properties')
         if (propsFile.exists()) {
             def props = new Properties()
             propsFile.withInputStream { props.load(it) }
-
             def currentVersion = props.getProperty('version', '1.0-SNAPSHOT')
             def releaseVersion = currentVersion.replace('-SNAPSHOT', '')
-
             props.setProperty('version', releaseVersion)
             propsFile.withOutputStream { props.store(it, 'Updated by prepareRelease task') }
-
             logger.lifecycle("Updated version from ${currentVersion} to ${releaseVersion}")
         }
     }
 }
 
-// Build summary task
 tasks.register('buildSummary') {
     group = 'build'
     description = 'Display build summary'
-
     doLast {
         logger.lifecycle("")
         logger.lifecycle("==========================================")
@@ -209,7 +172,6 @@ tasks.register('buildSummary') {
         logger.lifecycle("Version: ${version}")
         logger.lifecycle("Java: ${System.getProperty('java.version')}")
         logger.lifecycle("Gradle: ${gradle.gradleVersion}")
-
         def jarFile = file("build/libs/${base.archivesName.get()}-${version}.jar")
         if (jarFile.exists()) {
             logger.lifecycle("JAR: ${jarFile.name} (${(jarFile.length() / 1024).round(2)} KB)")
@@ -217,18 +179,14 @@ tasks.register('buildSummary') {
         } else {
             logger.lifecycle("JAR: Not found")
         }
-
         logger.lifecycle("==========================================")
     }
 }
 
-// Auto-run build summary after shadowJar
 shadowJar.finalizedBy buildSummary
 
-// Set default task
 defaultTasks 'clean', 'shadowJar'
 
-// Modern error handling
 tasks.configureEach {
     doFirst {
         if (it.name == 'shadowJar') {

@@ -142,7 +142,15 @@ public class BossBarManager {
         float progress = Math.max(0.0f, Math.min(1.0f, (float) oxygen / maxOxygen));
         bossBar.progress(progress);
 
-        // **FIX: Use thresholds from ConfigSettings instead of hardcoded values**
+        BossBar.Color newColor = getColor(oxygen);
+
+        // Chỉ cập nhật màu nếu khác với màu hiện tại (tối ưu hiệu suất)
+        if (bossBar.color() != newColor) {
+            bossBar.color(newColor);
+        }
+    }
+
+    private BossBar.Color getColor(int oxygen) {
         BossBar.Color newColor;
         int mediumThreshold = configSettings.getMediumThreshold();
         int lowThreshold = configSettings.getLowThreshold();
@@ -154,11 +162,7 @@ public class BossBarManager {
         } else {
             newColor = convertBukkitColorToAdventure(configSettings.getLowColor());
         }
-
-        // Chỉ cập nhật màu nếu khác với màu hiện tại (tối ưu hiệu suất)
-        if (bossBar.color() != newColor) {
-            bossBar.color(newColor);
-        }
+        return newColor;
     }
 
     /**

@@ -2,7 +2,7 @@ name: Oxygen
 version: '${version}'
 main: org.haile.oxygen.Oxygen
 api-version: '1.20'
-depend: [WorldGuard]
+depend: [WorldGuard, PlaceholderAPI]
 authors: [haile]
 description: A plugin that adds oxygen mechanics to your server
 commands:
