@@ -44,6 +44,8 @@ public class ConfigSettings {
     private String mysqlPassword;
     private String mysqlTablePrefix;
 
+    private boolean enableBossbar;
+
     /**
      * Constructor with defaults
      */
@@ -78,6 +80,7 @@ public class ConfigSettings {
         this.mysqlUsername = "root";
         this.mysqlPassword = "password";
         this.mysqlTablePrefix = "oxygen_";
+        this.enableBossbar = true;
     }
 
     /**
@@ -91,7 +94,7 @@ public class ConfigSettings {
         this.maxOxygenLevel = config.getInt("oxygen.max-level", 100);
         this.decreaseRate = config.getInt("oxygen.decrease-rate", 100);
         this.damageAmount = config.getInt("oxygen.damage", 20);
-
+        this.enableBossbar = config.getBoolean("display.enable", true);
         // Load allowed gamemodes
         this.allowedGameModes.clear();
         List<String> gameModes = config.getStringList("oxygen.gamemodes");
@@ -242,5 +245,13 @@ public class ConfigSettings {
 
     public String getMysqlTablePrefix() {
         return mysqlTablePrefix;
+    }
+
+    public boolean isEnableBossbar() {
+        return enableBossbar;
+    }
+
+    public void setEnableBossbar(boolean enableBossbar) {
+        this.enableBossbar = enableBossbar;
     }
 }

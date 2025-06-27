@@ -96,7 +96,9 @@ public class BossBarManager {
         );
 
         // Hiển thị cho người chơi
-        player.showBossBar(bossBar);
+        //Config
+        if (configSettings.isEnableBossbar())
+            player.showBossBar(bossBar);
 
         // Store boss bar
         playerBossBars.put(player.getUniqueId(), bossBar);
@@ -141,6 +143,11 @@ public class BossBarManager {
         // Update progress (0.0 to 1.0)
         float progress = Math.max(0.0f, Math.min(1.0f, (float) oxygen / maxOxygen));
         bossBar.progress(progress);
+
+        // Update air bar
+        int maxAir = player.getMaximumAir(); // Default: 300 ticks (10 bubbles)
+        int newAir = (int) (progress * maxAir); // Map progress to air ticks
+        player.setRemainingAir(Math.max(0, Math.min(maxAir, newAir)));
 
         BossBar.Color newColor = getColor(oxygen);
 

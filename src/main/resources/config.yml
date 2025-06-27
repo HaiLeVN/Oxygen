@@ -82,6 +82,8 @@ notifications:
 
 # Display settings
 display:
+  #enable
+  enable: true
   # BossBar settings
   bossbar:
     # Sử dụng màu hex như mong muốn
